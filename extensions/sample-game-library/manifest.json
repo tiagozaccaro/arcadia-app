@@ -1,0 +1,39 @@
+{
+  "name": "Sample Game Library",
+  "version": "1.0.0",
+  "author": "Arcadia App Team",
+  "description": "A sample extension demonstrating game library functionality with database integration and game scanning capabilities",
+  "type": "game_library",
+  "entry_point": "src/lib.rs",
+  "permissions": ["filesystem", "database"],
+  "dependencies": {
+    "serde": "^1.0",
+    "tokio": "^1.0"
+  },
+  "hooks": ["on_startup", "on_game_scan"],
+  "apis": {
+    "provided": ["scan_games", "get_games", "get_game_details", "launch_game"],
+    "required": ["database_query", "database_insert"]
+  },
+  "menuItems": [
+    {
+      "title": "Games",
+      "url": "/games",
+      "icon": "Gamepad2",
+      "items": [
+        {
+          "title": "Library",
+          "url": "/games/library"
+        },
+        {
+          "title": "Recently Played",
+          "url": "/games/recent"
+        },
+        {
+          "title": "Favorites",
+          "url": "/games/favorites"
+        }
+      ]
+    }
+  ]
+}
