@@ -1,6 +1,8 @@
 use crate::models::*;
 use async_trait::async_trait;
+use reqwest::Client;
 use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -8,6 +10,104 @@ use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use urlencoding;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum StoreSourceType {
+    Official,
+    Community,
+    Custom,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreSource {
+    pub id: String,
+    pub name: String,
+    pub source_type: StoreSourceType,
+    pub base_url: String,
+    pub enabled: bool,
+    pub priority: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreExtension {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub author: String,
+    pub description: String,
+    pub extension_type: ExtensionType,
+    pub download_count: u32,
+    pub rating: f32,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreExtensionDetails {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub author: String,
+    pub description: String,
+    pub extension_type: ExtensionType,
+    pub download_count: u32,
+    pub rating: f32,
+    pub tags: Vec<String>,
+    pub manifest_url: String,
+    pub package_url: String,
+    pub checksum: String,
+    pub readme: String,
+    pub screenshots: Vec<String>,
+    pub dependencies: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreFilters {
+    pub extension_type: Option<ExtensionType>,
+    pub tags: Option<Vec<String>>,
+    pub search: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SortOption {
+    Name,
+    DownloadCount,
+    Rating,
+    Newest,
+}
+
+#[derive(Debug)]
+pub enum StoreError {
+    Network(reqwest::Error),
+    Json(serde_json::Error),
+    Validation(String),
+    Security(String),
+}
+
+impl std::fmt::Display for StoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StoreError::Network(e) => write!(f, "Network error: {}", e),
+            StoreError::Json(e) => write!(f, "JSON error: {}", e),
+            StoreError::Validation(msg) => write!(f, "Validation error: {}", msg),
+            StoreError::Security(msg) => write!(f, "Security error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for StoreError {}
+
+impl From<reqwest::Error> for StoreError {
+    fn from(e: reqwest::Error) -> Self {
+        StoreError::Network(e)
+    }
+}
+
+impl From<serde_json::Error> for StoreError {
+    fn from(e: serde_json::Error) -> Self {
+        StoreError::Json(e)
+    }
+}
 
 #[async_trait]
 pub trait ExtensionImpl: Send + Sync {
@@ -231,6 +331,232 @@ impl ExtensionManager {
     }
 }
 
+pub struct StoreManager {
+    sources: HashMap<String, StoreSource>,
+}
+
+impl StoreManager {
+    pub fn new() -> Self {
+        let mut sources = HashMap::new();
+
+        // Add default official source
+        let official_source = StoreSource {
+            id: "official".to_string(),
+            name: "Official Arcadia Store".to_string(),
+            source_type: StoreSourceType::Official,
+            base_url: "https://api.arcadia-app.com/extensions".to_string(),
+            enabled: true,
+            priority: 0,
+        };
+        sources.insert(official_source.id.clone(), official_source);
+
+        Self { sources }
+    }
+
+    pub fn add_source(&mut self, source: StoreSource) -> Result<(), StoreError> {
+        if self.sources.contains_key(&source.id) {
+            return Err(StoreError::Validation("Source with this ID already exists".to_string()));
+        }
+        self.validate_source(&source)?;
+        self.sources.insert(source.id.clone(), source);
+        Ok(())
+    }
+
+    pub fn remove_source(&mut self, id: &str) -> Result<(), StoreError> {
+        if id == "official" {
+            return Err(StoreError::Validation("Cannot remove official source".to_string()));
+        }
+        self.sources.remove(id);
+        Ok(())
+    }
+
+    pub fn update_source(&mut self, source: StoreSource) -> Result<(), StoreError> {
+        if !self.sources.contains_key(&source.id) {
+            return Err(StoreError::Validation("Source not found".to_string()));
+        }
+        if source.id == "official" && source.source_type != StoreSourceType::Official {
+            return Err(StoreError::Validation("Cannot change type of official source".to_string()));
+        }
+        self.validate_source(&source)?;
+        self.sources.insert(source.id.clone(), source);
+        Ok(())
+    }
+
+    pub fn get_source(&self, id: &str) -> Option<&StoreSource> {
+        self.sources.get(id)
+    }
+
+    pub fn list_sources(&self) -> Vec<StoreSource> {
+        let mut sources: Vec<_> = self.sources.values().cloned().collect();
+        sources.sort_by_key(|s| s.priority);
+        sources
+    }
+
+    pub fn get_enabled_sources(&self) -> Vec<StoreSource> {
+        self.sources.values().filter(|s| s.enabled).cloned().collect()
+    }
+
+    fn validate_source(&self, source: &StoreSource) -> Result<(), StoreError> {
+        if source.name.trim().is_empty() {
+            return Err(StoreError::Validation("Source name cannot be empty".to_string()));
+        }
+        if source.base_url.trim().is_empty() {
+            return Err(StoreError::Validation("Base URL cannot be empty".to_string()));
+        }
+
+        // Validate URL format
+        if url::Url::parse(&source.base_url).is_err() {
+            return Err(StoreError::Validation("Invalid URL format".to_string()));
+        }
+
+        // Security validations for custom sources
+        if matches!(source.source_type, StoreSourceType::Custom) {
+            self.validate_custom_url(&source.base_url)?;
+        }
+
+        Ok(())
+    }
+
+    fn validate_custom_url(&self, url: &str) -> Result<(), StoreError> {
+        // Only allow HTTPS for custom sources
+        if !url.starts_with("https://") {
+            return Err(StoreError::Security("Custom sources must use HTTPS".to_string()));
+        }
+
+        // Check for potentially dangerous URLs
+        let blocked_domains = ["localhost", "127.0.0.1", "0.0.0.0", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"];
+        for domain in &blocked_domains {
+            if url.contains(domain) {
+                return Err(StoreError::Security(format!("Blocked domain: {}", domain)));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[tauri::command]
+pub async fn fetch_store_extensions(
+    source_id: String,
+    filters: StoreFilters,
+    sort: SortOption,
+    page: u32,
+    limit: u32,
+    store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
+) -> Result<Vec<StoreExtension>, String> {
+    let manager = store_manager.inner().read().await;
+    let source = manager.get_source(&source_id).ok_or_else(|| format!("Source {} not found", source_id))?;
+    if !source.enabled {
+        return Err(format!("Source {} is disabled", source_id));
+    }
+    let client = ExtensionStoreClient::new();
+    client.fetch_extensions(&source.base_url, &filters, &sort, page, limit).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn fetch_extension_details(
+    source_id: String,
+    extension_id: String,
+    store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
+) -> Result<StoreExtensionDetails, String> {
+    let manager = store_manager.inner().read().await;
+    let source = manager.get_source(&source_id).ok_or_else(|| format!("Source {} not found", source_id))?;
+    if !source.enabled {
+        return Err(format!("Source {} is disabled", source_id));
+    }
+    let client = ExtensionStoreClient::new();
+    client.fetch_extension_details(&source.base_url, &extension_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn install_from_store(
+    source_id: String,
+    extension_id: String,
+    extension_manager: tauri::State<'_, Arc<RwLock<ExtensionManager>>>,
+    store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
+) -> Result<String, String> {
+    let store_mgr = store_manager.inner().read().await;
+    let source = store_mgr.get_source(&source_id).ok_or_else(|| format!("Source {} not found", source_id))?;
+    if !source.enabled {
+        return Err(format!("Source {} is disabled", source_id));
+    }
+    let client = ExtensionStoreClient::new();
+
+    // Fetch details
+    let details = client.fetch_extension_details(&source.base_url, &extension_id).await.map_err(|e| e.to_string())?;
+
+    // Download manifest
+    let manifest = client.download_manifest(&details.manifest_url).await.map_err(|e| e.to_string())?;
+
+    // Check if extension is already installed
+    let manager = extension_manager.inner().read().await;
+    let installed_extensions = manager.list_extensions();
+    let is_installed = installed_extensions.iter().any(|ext| ext.id == extension_id);
+
+    // If installed, uninstall the old version first
+    let mut manager = extension_manager.inner().write().await;
+    if is_installed {
+        manager.unload_extension(&extension_id).await.map_err(|e| format!("Failed to uninstall old version: {}", e))?;
+    }
+
+    // Download package
+    let package_data = client.download_extension(&details.package_url, &details.checksum).await.map_err(|e| e.to_string())?;
+
+    // Save package to temp file
+    let temp_dir = std::env::temp_dir();
+    let package_path = temp_dir.join(format!("{}.zip", extension_id));
+    std::fs::write(&package_path, package_data).map_err(|e| e.to_string())?;
+
+    // Extract package (assuming it's a zip with manifest.json at root)
+    // For simplicity, assume the package contains the extension files directly
+    // In real implementation, extract to a temp dir and find manifest
+    let extract_dir = temp_dir.join(format!("extracted_{}", extension_id));
+    std::fs::create_dir_all(&extract_dir).map_err(|e| e.to_string())?;
+    // TODO: Implement zip extraction
+    // For now, assume manifest is downloaded separately
+
+    // Save manifest to extracted dir
+    let manifest_path = extract_dir.join("manifest.json");
+    let manifest_json = serde_json::to_string(&manifest).map_err(|e| e.to_string())?;
+    std::fs::write(&manifest_path, manifest_json).map_err(|e| e.to_string())?;
+
+    // Install using ExtensionManager
+    manager.load_extension(&manifest_path).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_store_sources(store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>) -> Result<Vec<StoreSource>, String> {
+    let manager = store_manager.inner().read().await;
+    Ok(manager.list_sources())
+}
+
+#[tauri::command]
+pub async fn add_store_source(
+    source: StoreSource,
+    store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
+) -> Result<(), String> {
+    let mut manager = store_manager.inner().write().await;
+    manager.add_source(source).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn remove_store_source(
+    source_id: String,
+    store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
+) -> Result<(), String> {
+    let mut manager = store_manager.inner().write().await;
+    manager.remove_source(&source_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn update_store_source(
+    source: StoreSource,
+    store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
+) -> Result<(), String> {
+    let mut manager = store_manager.inner().write().await;
+    manager.update_source(source).map_err(|e| e.to_string())
+}
+
 pub struct ExtensionRegistry {
     extensions: HashMap<String, ExtensionInfo>,
 }
@@ -298,5 +624,87 @@ impl ExtensionImpl for StubExtension {
 
     fn get_id(&self) -> &str {
         &self.id
+    }
+}
+
+pub struct ExtensionStoreClient {
+    client: Client,
+}
+
+impl ExtensionStoreClient {
+    pub fn new() -> Self {
+        Self {
+            client: Client::new(),
+        }
+    }
+
+    pub async fn fetch_extensions(&self, base_url: &str, filters: &StoreFilters, sort: &SortOption, page: u32, limit: u32) -> Result<Vec<StoreExtension>, StoreError> {
+        let mut url = format!("{}/extensions?page={}&limit={}", base_url, page, limit);
+
+        if let Some(ext_type) = &filters.extension_type {
+            url.push_str(&format!("&type={}", ext_type.to_string()));
+        }
+        if let Some(tags) = &filters.tags {
+            url.push_str(&format!("&tags={}", tags.join(",")));
+        }
+        if let Some(search) = &filters.search {
+            url.push_str(&format!("&search={}", urlencoding::encode(search)));
+        }
+        url.push_str(&format!("&sort={}", match sort {
+            SortOption::Name => "name",
+            SortOption::DownloadCount => "downloads",
+            SortOption::Rating => "rating",
+            SortOption::Newest => "newest",
+        }));
+
+        let response = self.client.get(&url).send().await?;
+        let extensions: Vec<StoreExtension> = response.json().await?;
+        Ok(extensions)
+    }
+
+    pub async fn fetch_extension_details(&self, base_url: &str, id: &str) -> Result<StoreExtensionDetails, StoreError> {
+        let url = format!("{}/extensions/{}", base_url, id);
+        let response = self.client.get(&url).send().await?;
+        let details: StoreExtensionDetails = response.json().await?;
+        Ok(details)
+    }
+
+    pub async fn download_manifest(&self, manifest_url: &str) -> Result<ExtensionManifest, StoreError> {
+        let response = self.client.get(manifest_url).send().await?;
+        let manifest: ExtensionManifest = response.json().await?;
+        self.validate_manifest_security(&manifest)?;
+        Ok(manifest)
+    }
+
+    pub async fn download_extension(&self, package_url: &str, checksum: &str) -> Result<Vec<u8>, StoreError> {
+        let response = self.client.get(package_url).send().await?;
+        let bytes = response.bytes().await?;
+        let data = bytes.to_vec();
+
+        // Validate checksum
+        let computed_checksum = format!("{:x}", md5::compute(&data));
+        if computed_checksum != checksum {
+            return Err(StoreError::Security("Checksum mismatch".to_string()));
+        }
+
+        Ok(data)
+    }
+
+    fn validate_manifest_security(&self, manifest: &ExtensionManifest) -> Result<(), StoreError> {
+        // Basic security validations
+        if manifest.name.contains("..") || manifest.name.contains("/") {
+            return Err(StoreError::Security("Invalid extension name".to_string()));
+        }
+        if manifest.entry_point.contains("..") {
+            return Err(StoreError::Security("Invalid entry point".to_string()));
+        }
+        // Check for dangerous permissions
+        let dangerous_perms = ["filesystem", "native"];
+        for perm in &manifest.permissions {
+            if dangerous_perms.contains(&perm.as_str()) {
+                return Err(StoreError::Security(format!("Dangerous permission requested: {}", perm)));
+            }
+        }
+        Ok(())
     }
 }

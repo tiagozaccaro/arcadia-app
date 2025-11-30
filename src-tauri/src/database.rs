@@ -57,12 +57,27 @@ pub fn init_database(app: &App) -> Result<(), Box<dyn std::error::Error>> {
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS extension_settings (
-             id INTEGER PRIMARY KEY,
-             extension_id TEXT,
-             key TEXT NOT NULL,
-             value TEXT,
-             FOREIGN KEY (extension_id) REFERENCES extensions(id)
-         )",
+              id INTEGER PRIMARY KEY,
+              extension_id TEXT,
+              key TEXT NOT NULL,
+              value TEXT,
+              FOREIGN KEY (extension_id) REFERENCES extensions(id)
+          )",
+        [],
+    )?;
+
+    // Store sources table
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS store_sources (
+              id TEXT PRIMARY KEY,
+              name TEXT NOT NULL,
+              source_type TEXT NOT NULL,
+              base_url TEXT NOT NULL,
+              enabled BOOLEAN DEFAULT 1,
+              priority INTEGER DEFAULT 0,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )",
         [],
     )?;
 

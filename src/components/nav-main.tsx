@@ -4,6 +4,7 @@ import {
   Settings2,
   type LucideIcon,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import {
   Collapsible,
@@ -69,10 +70,13 @@ export function NavMain({
             <Collapsible key={item.title} asChild defaultOpen={item.isActive}>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip={item.title}>
-                  <a href={item.url}>
+                  <Link
+                    to={item.url}
+                    onClick={() => console.log('Navigating to:', item.url)}
+                  >
                     <item.icon />
                     <span>{item.title}</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
                 <CollapsibleTrigger asChild>
                   <SidebarMenuAction className='data-[state=open]:rotate-90'>
@@ -85,9 +89,14 @@ export function NavMain({
                     {item.items.map((subItem) => (
                       <SidebarMenuSubItem key={subItem.title}>
                         <SidebarMenuSubButton asChild>
-                          <a href={subItem.url}>
+                          <Link
+                            to={subItem.url}
+                            onClick={() =>
+                              console.log('Navigating to:', subItem.url)
+                            }
+                          >
                             <span>{subItem.title}</span>
-                          </a>
+                          </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}
@@ -98,10 +107,13 @@ export function NavMain({
           ) : (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild tooltip={item.title}>
-                <a href={item.url}>
+                <Link
+                  to={item.url}
+                  onClick={() => console.log('Navigating to:', item.url)}
+                >
                   <item.icon />
                   <span>{item.title}</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )

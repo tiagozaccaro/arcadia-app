@@ -8,7 +8,7 @@ use tauri::{AppHandle, Manager, State};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::runtime::Runtime;
-use crate::extensions::ExtensionManager;
+use crate::extensions::{ExtensionManager, StoreManager, fetch_store_extensions, fetch_extension_details, install_from_store, list_store_sources, add_store_source, remove_store_source, update_store_source};
 use crate::models::ExtensionInfo;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -154,9 +154,13 @@ pub fn run() {
 
             app.manage(Arc::new(RwLock::new(extension_manager)));
 
+            // Initialize store manager
+            let store_manager = StoreManager::new();
+            app.manage(Arc::new(RwLock::new(store_manager)));
+
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, get_setting, set_setting, get_app_data, save_app_data, update_app_data, delete_app_data, install_extension, uninstall_extension, enable_extension, disable_extension, list_extensions, call_extension_api, get_extension_menu_items])
+        .invoke_handler(tauri::generate_handler![greet, get_setting, set_setting, get_app_data, save_app_data, update_app_data, delete_app_data, install_extension, uninstall_extension, enable_extension, disable_extension, list_extensions, call_extension_api, get_extension_menu_items, fetch_store_extensions, fetch_extension_details, install_from_store, list_store_sources, add_store_source, remove_store_source, update_store_source])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
