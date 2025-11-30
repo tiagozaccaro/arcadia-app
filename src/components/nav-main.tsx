@@ -1,9 +1,4 @@
-import {
-  ChevronRight,
-  PieChart,
-  Settings2,
-  type LucideIcon,
-} from 'lucide-react';
+import { ChevronRight, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import {
@@ -22,30 +17,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
-
-type MenuItem = {
-  title: string;
-  url: string;
-  icon: LucideIcon;
-  isActive?: boolean;
-  items?: {
-    title: string;
-    url: string;
-  }[];
-};
-
-const existingRoutes: MenuItem[] = [
-  {
-    title: 'Dashboard',
-    url: '/dashboard',
-    icon: PieChart,
-  },
-  {
-    title: 'Extensions',
-    url: '/extensions',
-    icon: Settings2,
-  },
-];
 
 export function NavMain({
   items,

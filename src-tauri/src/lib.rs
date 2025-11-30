@@ -7,9 +7,9 @@ use rusqlite::Connection;
 use tauri::{AppHandle, Manager, State};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::runtime::Runtime;
-use crate::extensions::{ExtensionManager, StoreManager, fetch_store_extensions, fetch_extension_details, install_from_store, list_store_sources, add_store_source, remove_store_source, update_store_source};
-use crate::models::ExtensionInfo;
+use arcadia_extension_framework::models::{ExtensionInfo, MenuItem};
+use arcadia_extension_framework::store::manager::StoreManager;
+use crate::extensions::{ExtensionManager, fetch_store_extensions, fetch_extension_details, install_from_store, list_store_sources, add_store_source, remove_store_source, update_store_source};
 use serde_json::Value;
 use std::path::PathBuf;
 #[tauri::command]
@@ -120,7 +120,7 @@ async fn call_extension_api(app: AppHandle, extension_id: String, api: String, p
 }
 
 #[tauri::command]
-async fn get_extension_menu_items(extension_manager: State<'_, Arc<RwLock<ExtensionManager>>>) -> Result<Vec<crate::models::MenuItem>, String> {
+async fn get_extension_menu_items(extension_manager: State<'_, Arc<RwLock<ExtensionManager>>>) -> Result<Vec<MenuItem>, String> {
     let manager = extension_manager.inner().read().await;
     let items = manager.get_extension_menu_items();
     println!("get_extension_menu_items: returning {} items", items.len());
@@ -134,23 +134,17 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    println!("Tauri app starting in debug mode");
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            println!("Setting up app");
             database::init_database(app).expect("Failed to init database");
 
             // Initialize extension manager
             let extension_dir = PathBuf::from("./extensions"); // Default extension directory
-            let mut extension_manager = ExtensionManager::new(app.handle().clone(), extension_dir.clone());
+            let extension_manager = ExtensionManager::new(app.handle().clone(), extension_dir.clone());
 
-            // Load sample extension on startup
-            let rt = Runtime::new().unwrap();
-            rt.block_on(async {
-                let sample_manifest = extension_dir.join("sample-game-library/manifest.json");
-                if sample_manifest.exists() {
-                    let _ = extension_manager.load_extension(&sample_manifest).await;
-                }
-            });
 
             app.manage(Arc::new(RwLock::new(extension_manager)));
 
