@@ -8,6 +8,7 @@ use arcadia_extension_framework::store::manager::StoreManager;
 use arcadia_extension_framework::store::client::ExtensionStoreClient;
 use async_trait::async_trait;
 use rusqlite::Connection;
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -205,23 +206,96 @@ impl ExtensionManager {
     }
 }
 
+#[derive(Deserialize)]
+struct DefaultExtension {
+    name: String,
+    description: String,
+    version: String,
+    author: String,
+    category: String,
+    tags: Vec<String>,
+    manifest_url: String,
+}
+
+#[derive(Deserialize)]
+pub struct FrontendStoreFilters {
+    extension_type: Option<ExtensionType>,
+    tags: Option<Vec<String>>,
+    search: Option<String>,
+    source_ids: Option<Vec<String>>,
+}
+
+async fn load_default_extensions(_app_handle: &tauri::AppHandle) -> Result<Vec<StoreExtension>, String> {
+    println!("Loading default extensions from store-manifest.json");
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
+    let path = std::path::Path::new(&manifest_dir).join("../arcadia-store/store-manifest.json");
+    println!("Manifest dir: {:?}", manifest_dir);
+    println!("Attempting to read file at path: {:?}", path);
+    let content = std::fs::read_to_string(&path).map_err(|e| {
+        println!("Failed to read file: {}", e);
+        e.to_string()
+    })?;
+    println!("Successfully read file content, length: {}", content.len());
+    let default_exts: Vec<DefaultExtension> = serde_json::from_str(&content).map_err(|e| {
+        println!("Failed to parse JSON: {}", e);
+        e.to_string()
+    })?;
+    println!("Successfully parsed {} default extensions", default_exts.len());
+    let store_exts: Vec<StoreExtension> = default_exts.into_iter().map(|ext| StoreExtension {
+        id: ext.manifest_url.clone(),
+        name: ext.name,
+        description: ext.description,
+        version: ext.version,
+        author: ext.author,
+        extension_type: ExtensionType::GameLibrary,
+        download_count: 0,
+        rating: 0.0,
+        tags: ext.tags,
+    }).collect();
+    println!("Converted to {} store extensions", store_exts.len());
+    Ok(store_exts)
+}
 
 #[tauri::command]
 pub async fn fetch_store_extensions(
-    source_id: String,
-    filters: StoreFilters,
+    app_handle: tauri::AppHandle,
+    filters: FrontendStoreFilters,
     sort: SortOption,
     page: u32,
     limit: u32,
     store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
 ) -> Result<Vec<StoreExtension>, String> {
-    let manager = store_manager.inner().read().await;
-    let source = manager.get_source(&source_id).ok_or_else(|| format!("Source {} not found", source_id))?;
-    if !source.enabled {
-        return Err(format!("Source {} is disabled", source_id));
+    println!("fetch_store_extensions called with page: {}, limit: {}", page, limit);
+    let default_exts = load_default_extensions(&app_handle).await?;
+    println!("Loaded {} default extensions", default_exts.len());
+    let mut results = default_exts;
+
+    if let Some(source_ids) = &filters.source_ids {
+        println!("Processing {} source IDs", source_ids.len());
+        for source_id in source_ids {
+            println!("Processing source: {}", source_id);
+            let manager = store_manager.inner().read().await;
+            let source = manager.get_source(source_id).ok_or_else(|| format!("Source {} not found", source_id))?;
+            if !source.enabled {
+                println!("Source {} is disabled, skipping", source_id);
+                continue;
+            }
+            let client = ExtensionStoreClient::new();
+            let api_filters = StoreFilters {
+                extension_type: filters.extension_type.clone(),
+                tags: filters.tags.clone(),
+                search: filters.search.clone(),
+            };
+            let source_results = client.fetch_extensions(&source.base_url, &api_filters, &sort, page, limit).await.map_err(|e| e.to_string())?;
+            println!("Fetched {} extensions from source {}", source_results.len(), source_id);
+            results.extend(source_results);
+        }
+    } else {
+        println!("No source_ids provided in filters");
     }
-    let client = ExtensionStoreClient::new();
-    client.fetch_extensions(&source.base_url, &filters, &sort, page, limit).await.map_err(|e| e.to_string())
+
+    println!("Returning {} total extensions", results.len());
+    Ok(results)
 }
 
 #[tauri::command]
