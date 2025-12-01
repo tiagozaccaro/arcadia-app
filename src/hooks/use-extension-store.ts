@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  SortOption,
   StoreExtension,
   StoreExtensionDetails,
   StoreFilters,
-  SortOption,
-  fetchStoreExtensions,
   fetchExtensionDetails,
+  fetchStoreExtensions,
   installFromStore,
   isVersionGreater,
 } from '../lib/extensions';
@@ -32,6 +32,7 @@ interface UseExtensionStoreReturn {
 const PAGE_SIZE = 20;
 
 export function useExtensionStore(): UseExtensionStoreReturn {
+  console.log('useExtensionStore hook initialized');
   const { getExtensionById } = useExtensions();
   const { getEnabledSources } = useStoreSources();
   const [extensions, setExtensions] = useState<StoreExtension[]>([]);
@@ -55,12 +56,19 @@ export function useExtensionStore(): UseExtensionStoreReturn {
           const enabledSources = getEnabledSources();
           effectiveFilters.source_ids = enabledSources.map((s) => s.id);
         }
+        console.log('Calling fetchStoreExtensions with', {
+          effectiveFilters,
+          sort,
+          page,
+          PAGE_SIZE,
+        });
         const newExtensions = await fetchStoreExtensions(
           effectiveFilters,
           sort,
           page,
           PAGE_SIZE
         );
+        console.log('Received extensions:', newExtensions);
 
         if (reset) {
           setExtensions(newExtensions);
@@ -72,6 +80,7 @@ export function useExtensionStore(): UseExtensionStoreReturn {
           setHasMore(newExtensions.length === PAGE_SIZE);
         }
       } catch (err) {
+        console.error('Error fetching extensions:', err);
         setError(
           err instanceof Error ? err.message : 'Failed to fetch extensions'
         );

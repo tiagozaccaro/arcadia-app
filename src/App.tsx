@@ -1,4 +1,3 @@
-import DashboardPage from '@/app/dashboard/page';
 import ExtensionsPage from '@/app/extensions/page';
 import ExtensionStorePage from '@/app/extensions/store/page';
 import { AppSidebar } from '@/components/app-sidebar';
@@ -28,7 +27,7 @@ function AppContent() {
         <SiteHeader />
         <div className='flex flex-1 flex-col'>
           <Routes>
-            <Route path='/' element={<DashboardPage />} />
+            <Route path='/' element={<ExtensionStorePage />} />
             <Route path='/extensions' element={<ExtensionsPage />} />
             <Route path='/extensions/store' element={<ExtensionStorePage />} />
           </Routes>
