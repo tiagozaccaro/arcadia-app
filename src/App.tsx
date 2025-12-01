@@ -1,10 +1,20 @@
+import DashboardPage from '@/app/dashboard/page';
+import ExtensionsPage from '@/app/extensions/page';
+import ExtensionStorePage from '@/app/extensions/store/page';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import DashboardPage from '@/app/dashboard/page';
+import { useEffect } from 'react';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
 
-export default function App() {
+function AppContent() {
+  const location = useLocation();
+
+  useEffect(() => {
+    console.log('Route changed to:', location.pathname);
+  }, [location]);
+
   return (
     <SidebarProvider
       style={
@@ -17,9 +27,22 @@ export default function App() {
       <SidebarInset>
         <SiteHeader />
         <div className='flex flex-1 flex-col'>
-          <DashboardPage />
+          <Routes>
+            <Route path='/' element={<DashboardPage />} />
+            <Route path='/extensions' element={<ExtensionsPage />} />
+            <Route path='/extensions/store' element={<ExtensionStorePage />} />
+          </Routes>
         </div>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+export default function App() {
+  console.log('App component rendering');
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
