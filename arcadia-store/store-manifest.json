@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Steam Game Library Extension",
+    "description": "Extension for integrating Steam game library into Arcadia",
+    "version": "0.1.0",
+    "author": "Arcadia Team",
+    "category": "Game Library",
+    "tags": ["steam", "games", "library"],
+    "manifest_url": "https://raw.githubusercontent.com/tiago/arcadia/main/arcadia-steam-extension/manifest.json"
+  }
+]
