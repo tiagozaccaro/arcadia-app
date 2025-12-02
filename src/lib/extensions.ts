@@ -2,9 +2,9 @@ import { invoke } from '@tauri-apps/api/core';
 
 // Extension Types
 export enum ExtensionType {
-  Theme = 'theme',
-  DataSource = 'data_source',
-  GameLibrary = 'game_library',
+  Theme = 'Theme',
+  DataSource = 'DataSource',
+  GameLibrary = 'GameLibrary',
 }
 
 // Menu Item for extensions
@@ -73,6 +73,7 @@ export interface StoreExtension {
   description: string;
   extension_type: ExtensionType;
   source_id: string;
+  icon?: string;
   download_count: number;
   rating: number;
   tags: string[];
@@ -107,7 +108,7 @@ export interface StoreSource {
   id: string;
   name: string;
   type: StoreSourceType;
-  url: string;
+  base_url: string;
   enabled: boolean;
   priority: number;
 }
@@ -120,10 +121,10 @@ export interface StoreFilters {
 }
 
 export enum SortOption {
-  Name = 'name',
-  DownloadCount = 'downloads',
-  Rating = 'rating',
-  Newest = 'newest',
+  Name = 'Name',
+  DownloadCount = 'DownloadCount',
+  Rating = 'Rating',
+  Newest = 'Newest',
 }
 
 // Tauri Command Wrappers
@@ -310,7 +311,25 @@ export async function fetchStoreExtensions(
   page: number,
   limit: number
 ): Promise<StoreExtension[]> {
-  return await invoke('fetch_store_extensions', { filters, sort, page, limit });
+  console.log('extensions.ts: fetchStoreExtensions called with', {
+    filters,
+    sort,
+    page,
+    limit,
+  });
+  try {
+    const result = await invoke<StoreExtension[]>('fetch_store_extensions', {
+      filters,
+      sort,
+      page,
+      limit,
+    });
+    console.log('extensions.ts: fetchStoreExtensions received', result);
+    return result;
+  } catch (err) {
+    console.error('extensions.ts: fetchStoreExtensions error:', err);
+    throw err;
+  }
 }
 
 /**
@@ -321,7 +340,10 @@ export async function fetchStoreExtensions(
 export async function fetchExtensionDetails(
   extensionId: string
 ): Promise<StoreExtensionDetails> {
-  return await invoke('fetch_extension_details', { extensionId });
+  return await invoke('fetch_extension_details', {
+    sourceId: 'default',
+    extensionId,
+  });
 }
 
 /**
@@ -340,7 +362,17 @@ export async function installFromStore(extensionId: string): Promise<string> {
  * @returns Array of store sources
  */
 export async function fetchStoreSources(): Promise<StoreSource[]> {
-  return await invoke('fetch_store_sources');
+  console.log(
+    'extensions.ts: fetchStoreSources calling invoke list_store_sources'
+  );
+  try {
+    const result = await invoke<StoreSource[]>('list_store_sources');
+    console.log('extensions.ts: fetchStoreSources received:', result);
+    return result;
+  } catch (err) {
+    console.error('extensions.ts: fetchStoreSources error:', err);
+    throw err;
+  }
 }
 
 /**

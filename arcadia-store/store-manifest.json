@@ -6,6 +6,7 @@
     "author": "Arcadia Team",
     "category": "Game Library",
     "tags": ["steam", "games", "library"],
+    "icon": "steam",
     "manifest_url": "https://raw.githubusercontent.com/tiago/arcadia/main/arcadia-steam-extension/manifest.json"
   }
 ]

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useExtensionStore } from '@/hooks/use-extension-store';
-import { useStoreSources } from '@/hooks/use-store-sources';
 import { ExtensionCard } from '@/components/extension-card';
 import { ExtensionDetailsModal } from '@/components/extension-details-modal';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -13,10 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Sheet,
   SheetContent,
@@ -26,16 +23,19 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useExtensionStore } from '@/hooks/use-extension-store';
+import { useStoreSources } from '@/hooks/use-store-sources';
 import {
-  StoreExtensionDetails,
   ExtensionType,
   SortOption,
+  StoreExtensionDetails,
   StoreSource,
   StoreSourceType,
   getStoreSourceTypeDisplayName,
 } from '@/lib/extensions';
-import { Search, X, Plus, Trash2, Power, PowerOff } from 'lucide-react';
+import { Plus, Power, PowerOff, Search, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function ExtensionStorePage() {
   const {
@@ -74,7 +74,7 @@ export default function ExtensionStorePage() {
   const [newSource, setNewSource] = useState({
     name: '',
     type: StoreSourceType.Community,
-    url: '',
+    base_url: '',
     enabled: true,
     priority: 0,
   });
@@ -138,8 +138,8 @@ export default function ExtensionStorePage() {
     searchQuery || selectedType !== 'all' || selectedSource !== 'all';
 
   const handleAddSource = async () => {
-    if (!newSource.name.trim() || !newSource.url.trim()) {
-      setAddSourceError('Name and URL are required');
+    if (!newSource.name.trim() || !newSource.base_url.trim()) {
+      setAddSourceError('Name and Base URL are required');
       return;
     }
     setAddSourceLoading(true);
@@ -149,7 +149,7 @@ export default function ExtensionStorePage() {
       setNewSource({
         name: '',
         type: StoreSourceType.Community,
-        url: '',
+        base_url: '',
         enabled: true,
         priority: 0,
       });
@@ -315,8 +315,10 @@ export default function ExtensionStorePage() {
                     {selectedSource !== 'all' && (
                       <Badge variant='secondary' className='gap-1'>
                         Source:{' '}
-                        {sources.find((s) => s.id === selectedSource)?.name ||
-                          selectedSource}
+                        {selectedSource === 'default'
+                          ? 'Arcadia'
+                          : sources.find((s) => s.id === selectedSource)
+                              ?.name || selectedSource}
                         <Button
                           variant='ghost'
                           size='icon'
@@ -484,17 +486,17 @@ export default function ExtensionStorePage() {
                             </div>
 
                             <div className='grid grid-cols-4 items-center gap-4'>
-                              <Label htmlFor='url' className='text-right'>
-                                URL
+                              <Label htmlFor='base_url' className='text-right'>
+                                Base URL
                               </Label>
 
                               <Input
-                                id='url'
-                                value={newSource.url}
+                                id='base_url'
+                                value={newSource.base_url}
                                 onChange={(e) =>
                                   setNewSource({
                                     ...newSource,
-                                    url: e.target.value,
+                                    base_url: e.target.value,
                                   })
                                 }
                                 className='col-span-3'
@@ -582,7 +584,7 @@ export default function ExtensionStorePage() {
 
                         <CardContent>
                           <div className='text-sm text-muted-foreground'>
-                            <p>URL: {source.url}</p>
+                            <p>Base URL: {source.base_url}</p>
 
                             <p>Priority: {source.priority}</p>
                           </div>
