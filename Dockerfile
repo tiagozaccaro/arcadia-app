@@ -40,16 +40,18 @@ RUN cargo install tauri-cli
 # Set working directory
 WORKDIR /app
 
+# Copy build script first
+COPY scripts/build.sh /usr/local/bin/arcadia-build
+RUN chmod +x /usr/local/bin/arcadia-build
+
 # Copy all files
 COPY . .
 
 # Install frontend dependencies
 RUN pnpm install
 
-# Build the application with proper environment variables
-RUN PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig \
-   pnpm build && \
-   pnpm tauri build
+# Build the application using our build script
+RUN arcadia-build build
 
 # Final stage - use a smaller image for running
 FROM debian:stable-slim

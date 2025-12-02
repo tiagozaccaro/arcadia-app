@@ -46,6 +46,24 @@ docker-compose up -d arcadia-dev
 - `pnpm test` - Run frontend tests
 - `pnpm tauri build` - Build Tauri app
 
+### Build Script
+
+For troubleshooting build issues, use the build script:
+
+```bash
+# Development mode
+./scripts/build.sh dev
+
+# Production build
+./scripts/build.sh build
+```
+
+The build script automatically:
+
+- Sets up proper PKG_CONFIG_PATH
+- Verifies all required system libraries are available
+- Provides detailed error messages if dependencies are missing
+
 ### Docker Build
 
 ```bash

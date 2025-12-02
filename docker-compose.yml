@@ -15,7 +15,7 @@ services:
     environment:
       - NODE_ENV=development
       - PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig
-    command: sh -c "cd /app && pnpm dev"
+    command: sh -c "cd /app && ./scripts/build.sh dev"
     stdin_open: true
     tty: true
 
@@ -28,4 +28,4 @@ services:
     environment:
       - NODE_ENV=production
       - PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig
-    command: sh -c "cd /app && pnpm build && pnpm tauri build"
+    command: sh -c "cd /app && ./scripts/build.sh build"
