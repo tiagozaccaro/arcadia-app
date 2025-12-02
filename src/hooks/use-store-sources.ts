@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   StoreSource,
-  fetchStoreSources,
   addStoreSource,
-  removeStoreSource,
-  enableStoreSource,
   disableStoreSource,
+  enableStoreSource,
+  fetchStoreSources,
+  removeStoreSource,
   updateStoreSourcePriority,
 } from '../lib/extensions';
 
@@ -28,14 +28,19 @@ export function useStoreSources(): UseStoreSourcesReturn {
   const [error, setError] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
+    console.log('useStoreSources: fetchSources called');
     try {
       setLoading(true);
       setError(null);
+      console.log('useStoreSources: calling fetchStoreSources');
       const newSources = await fetchStoreSources();
+      console.log('useStoreSources: received sources:', newSources);
+      console.log('useStoreSources: number of sources:', newSources.length);
       // Sort by priority
       newSources.sort((a, b) => a.priority - b.priority);
       setSources(newSources);
     } catch (err) {
+      console.error('useStoreSources: error fetching sources:', err);
       setError(
         err instanceof Error ? err.message : 'Failed to fetch store sources'
       );

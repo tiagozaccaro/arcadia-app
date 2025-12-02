@@ -6,7 +6,23 @@ use arcadia_extension_framework::registry::ExtensionRegistry;
 use arcadia_extension_framework::store::models::*;
 use arcadia_extension_framework::store::manager::StoreManager;
 use arcadia_extension_framework::store::client::ExtensionStoreClient;
+use serde::Serialize;
 use async_trait::async_trait;
+
+#[derive(Serialize)]
+pub struct FrontendStoreExtension {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub author: String,
+    pub description: String,
+    pub extension_type: ExtensionType,
+    pub source_id: String,
+    pub icon: Option<String>,
+    pub download_count: u32,
+    pub rating: f32,
+    pub tags: Vec<String>,
+}
 use rusqlite::Connection;
 use serde::Deserialize;
 use serde_json::Value;
@@ -85,6 +101,7 @@ impl ExtensionManager {
         Ok(())
     }
 
+    #[allow(unused)]
     pub async fn call_hook(&self, hook: &str, params: Value) -> Result<Vec<Value>, ExtensionError> {
         let mut results = Vec::new();
         for extension in self.extensions.values() {
@@ -156,7 +173,7 @@ impl ExtensionManager {
         let extension = StubExtension {
             id: id.to_string(),
             manifest,
-            path,
+            _path: path,
         };
         Ok(Box::new(extension))
     }
@@ -214,10 +231,11 @@ struct DefaultExtension {
     author: String,
     category: String,
     tags: Vec<String>,
+    icon: Option<String>,
     manifest_url: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct FrontendStoreFilters {
     extension_type: Option<ExtensionType>,
     tags: Option<Vec<String>>,
@@ -225,35 +243,10 @@ pub struct FrontendStoreFilters {
     source_ids: Option<Vec<String>>,
 }
 
-async fn load_default_extensions(_app_handle: &tauri::AppHandle) -> Result<Vec<StoreExtension>, String> {
-    println!("Loading default extensions from store-manifest.json");
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
-    let path = std::path::Path::new(&manifest_dir).join("../arcadia-store/store-manifest.json");
-    println!("Manifest dir: {:?}", manifest_dir);
-    println!("Attempting to read file at path: {:?}", path);
-    let content = std::fs::read_to_string(&path).map_err(|e| {
-        println!("Failed to read file: {}", e);
-        e.to_string()
-    })?;
-    println!("Successfully read file content, length: {}", content.len());
-    let default_exts: Vec<DefaultExtension> = serde_json::from_str(&content).map_err(|e| {
-        println!("Failed to parse JSON: {}", e);
-        e.to_string()
-    })?;
-    println!("Successfully parsed {} default extensions", default_exts.len());
-    let store_exts: Vec<StoreExtension> = default_exts.into_iter().map(|ext| StoreExtension {
-        id: ext.manifest_url.clone(),
-        name: ext.name,
-        description: ext.description,
-        version: ext.version,
-        author: ext.author,
-        extension_type: ExtensionType::GameLibrary,
-        download_count: 0,
-        rating: 0.0,
-        tags: ext.tags,
-    }).collect();
-    println!("Converted to {} store extensions", store_exts.len());
-    Ok(store_exts)
+async fn load_default_extensions(_app_handle: &tauri::AppHandle) -> Result<Vec<FrontendStoreExtension>, String> {
+    println!("Loading default extensions from remote Arcadia Store source");
+    // Return empty vec since extensions should be loaded from sources
+    Ok(vec![])
 }
 
 #[tauri::command]
@@ -264,8 +257,10 @@ pub async fn fetch_store_extensions(
     page: u32,
     limit: u32,
     store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
-) -> Result<Vec<StoreExtension>, String> {
+) -> Result<Vec<FrontendStoreExtension>, String> {
     println!("fetch_store_extensions called with page: {}, limit: {}", page, limit);
+    println!("Filters: {:?}", filters);
+    println!("Sort: {:?}", sort);
     let default_exts = load_default_extensions(&app_handle).await?;
     println!("Loaded {} default extensions", default_exts.len());
     let mut results = default_exts;
@@ -280,15 +275,54 @@ pub async fn fetch_store_extensions(
                 println!("Source {} is disabled, skipping", source_id);
                 continue;
             }
-            let client = ExtensionStoreClient::new();
-            let api_filters = StoreFilters {
-                extension_type: filters.extension_type.clone(),
-                tags: filters.tags.clone(),
-                search: filters.search.clone(),
-            };
-            let source_results = client.fetch_extensions(&source.base_url, &api_filters, &sort, page, limit).await.map_err(|e| e.to_string())?;
-            println!("Fetched {} extensions from source {}", source_results.len(), source_id);
-            results.extend(source_results);
+
+            if source_id == "default" {
+                // For the default source, load extensions directly from the JSON file
+                println!("Loading extensions from default source JSON file");
+                let response = reqwest::get(&source.base_url).await.map_err(|e| format!("Failed to download manifest: {}", e))?;
+                let manifest_content = response.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+                let default_exts: Vec<DefaultExtension> = serde_json::from_str(&manifest_content).map_err(|e| format!("Failed to parse manifest: {}", e))?;
+                println!("Parsed {} extensions from default source", default_exts.len());
+
+                let frontend_results: Vec<FrontendStoreExtension> = default_exts.into_iter().map(|ext| FrontendStoreExtension {
+                    id: ext.manifest_url.clone(),
+                    name: ext.name,
+                    description: ext.description,
+                    version: ext.version,
+                    author: ext.author,
+                    extension_type: ExtensionType::GameLibrary,
+                    source_id: source_id.clone(),
+                    icon: ext.icon,
+                    download_count: 0,
+                    rating: 0.0,
+                    tags: ext.tags,
+                }).collect();
+                results.extend(frontend_results);
+            } else {
+                // For other sources, use the API client
+                let client = ExtensionStoreClient::new();
+                let api_filters = StoreFilters {
+                    extension_type: filters.extension_type.clone(),
+                    tags: filters.tags.clone(),
+                    search: filters.search.clone(),
+                };
+                let source_results = client.fetch_extensions(&source.base_url, &api_filters, &sort, page, limit).await.map_err(|e| e.to_string())?;
+                println!("Fetched {} extensions from source {}", source_results.len(), source_id);
+                let frontend_results: Vec<FrontendStoreExtension> = source_results.into_iter().map(|ext| FrontendStoreExtension {
+                    id: ext.id,
+                    name: ext.name,
+                    description: ext.description,
+                    version: ext.version,
+                    author: ext.author,
+                    extension_type: ext.extension_type,
+                    source_id: source_id.clone(),
+                    icon: None, // External sources don't provide icons
+                    download_count: ext.download_count,
+                    rating: ext.rating,
+                    tags: ext.tags,
+                }).collect();
+                results.extend(frontend_results);
+            }
         }
     } else {
         println!("No source_ids provided in filters");
@@ -304,13 +338,37 @@ pub async fn fetch_extension_details(
     extension_id: String,
     store_manager: tauri::State<'_, Arc<RwLock<StoreManager>>>,
 ) -> Result<StoreExtensionDetails, String> {
-    let manager = store_manager.inner().read().await;
-    let source = manager.get_source(&source_id).ok_or_else(|| format!("Source {} not found", source_id))?;
-    if !source.enabled {
-        return Err(format!("Source {} is disabled", source_id));
+    if source_id == "default" {
+        // For default extensions, download the manifest from the extension_id (which is the manifest_url)
+        let client = ExtensionStoreClient::new();
+        let manifest: ExtensionManifest = client.download_manifest(&extension_id).await.map_err(|e| e.to_string())?;
+        let details = StoreExtensionDetails {
+            id: extension_id.clone(),
+            name: manifest.name,
+            version: manifest.version,
+            author: manifest.author.unwrap_or_default(),
+            description: manifest.description.unwrap_or_default(),
+            extension_type: manifest.extension_type,
+            download_count: 0,
+            rating: 0.0,
+            tags: vec![],
+            manifest_url: extension_id.clone(),
+            package_url: "".to_string(),
+            checksum: "".to_string(),
+            readme: "".to_string(),
+            screenshots: vec![],
+            dependencies: manifest.dependencies.unwrap_or_default(),
+        };
+        Ok(details)
+    } else {
+        let manager = store_manager.inner().read().await;
+        let source = manager.get_source(&source_id).ok_or_else(|| format!("Source {} not found", source_id))?;
+        if !source.enabled {
+            return Err(format!("Source {} is disabled", source_id));
+        }
+        let client = ExtensionStoreClient::new();
+        client.fetch_extension_details(&source.base_url, &extension_id).await.map_err(|e| e.to_string())
     }
-    let client = ExtensionStoreClient::new();
-    client.fetch_extension_details(&source.base_url, &extension_id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -407,7 +465,7 @@ pub async fn update_store_source(
 pub struct StubExtension {
     pub id: String,
     pub manifest: ExtensionManifest,
-    pub path: PathBuf,
+    pub _path: PathBuf,
 }
 
 #[async_trait]

@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { useCallback, useEffect, useState } from 'react';
 import {
   SortOption,
@@ -27,6 +28,16 @@ interface UseExtensionStoreReturn {
   getExtensionDetails: (id: string) => Promise<StoreExtensionDetails>;
   installExtension: (id: string) => Promise<string>;
   isUpdateAvailable: (extension: StoreExtension) => boolean;
+  getExtensionSetting: (extensionId: string, key: string) => Promise<string>;
+  setExtensionSetting: (
+    extensionId: string,
+    key: string,
+    value: string
+  ) => Promise<void>;
+  listExtensionSettings: (
+    extensionId: string
+  ) => Promise<Array<{ key: string; value: string }>>;
+  deleteExtensionSetting: (extensionId: string, key: string) => Promise<void>;
 }
 
 const PAGE_SIZE = 20;
@@ -69,6 +80,14 @@ export function useExtensionStore(): UseExtensionStoreReturn {
           PAGE_SIZE
         );
         console.log('Received extensions:', newExtensions);
+        console.log('Number of extensions received:', newExtensions.length);
+        if (newExtensions.length === 0) {
+          console.log(
+            'No extensions received. Checking filters:',
+            effectiveFilters
+          );
+          console.log('Enabled sources:', getEnabledSources());
+        }
 
         if (reset) {
           setExtensions(newExtensions);
@@ -158,6 +177,83 @@ export function useExtensionStore(): UseExtensionStoreReturn {
     [fetchExtensions]
   );
 
+  const getExtensionSetting = useCallback(
+    async (extensionId: string, key: string): Promise<string> => {
+      try {
+        setError(null);
+        return await invoke<string>('get_extension_setting', {
+          extensionId,
+          key,
+        });
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Failed to get extension setting';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+    },
+    []
+  );
+
+  const setExtensionSetting = useCallback(
+    async (extensionId: string, key: string, value: string): Promise<void> => {
+      try {
+        setError(null);
+        await invoke('set_extension_setting', { extensionId, key, value });
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Failed to set extension setting';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+    },
+    []
+  );
+
+  const listExtensionSettings = useCallback(
+    async (
+      extensionId: string
+    ): Promise<Array<{ key: string; value: string }>> => {
+      try {
+        setError(null);
+        const settings = await invoke<[string, string][]>(
+          'list_extension_settings',
+          { extensionId }
+        );
+        return settings.map(([key, value]) => ({ key, value }));
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Failed to list extension settings';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+    },
+    []
+  );
+
+  const deleteExtensionSetting = useCallback(
+    async (extensionId: string, key: string): Promise<void> => {
+      try {
+        setError(null);
+        await invoke('delete_extension_setting', { extensionId, key });
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Failed to delete extension setting';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+    },
+    []
+  );
+
   // Initial load
   useEffect(() => {
     fetchExtensions(true);
@@ -185,5 +281,9 @@ export function useExtensionStore(): UseExtensionStoreReturn {
     getExtensionDetails,
     installExtension,
     isUpdateAvailable,
+    getExtensionSetting,
+    setExtensionSetting,
+    listExtensionSettings,
+    deleteExtensionSetting,
   };
 }
