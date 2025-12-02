@@ -14,6 +14,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
+      - PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig
     command: sh -c "cd /app && pnpm dev"
     stdin_open: true
     tty: true
@@ -26,4 +27,5 @@ services:
       - .:/app
     environment:
       - NODE_ENV=production
+      - PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig
     command: sh -c "cd /app && pnpm build && pnpm tauri build"
