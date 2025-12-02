@@ -31,6 +31,7 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+      'react-hooks/incompatible-library': 'off',
     },
   }
 );

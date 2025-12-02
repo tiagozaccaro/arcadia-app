@@ -329,7 +329,7 @@ function DraggableRow({ row }: { row: Row<SchemaType> }) {
   );
 }
 
-// 'use react compiler' skip
+// 'use react compiler'
 export function DataTable({ data: initialData }: { data: SchemaType[] }) {
   const [data, setData] = React.useState(() => initialData);
   const [rowSelection, setRowSelection] = React.useState({});
