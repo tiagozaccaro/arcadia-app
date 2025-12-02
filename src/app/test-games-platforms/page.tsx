@@ -1,6 +1,6 @@
-import { useGames } from '@/hooks/use-games';
-import { usePlatforms } from '@/hooks/use-platforms';
-import { useEffect, useState } from 'react';
+import { Game, useGames } from '@/hooks/use-games';
+import { Platform, usePlatforms } from '@/hooks/use-platforms';
+import { useCallback, useEffect, useState } from 'react';
 
 export default function TestGamesPlatformsPage() {
   const { createGame, getGames, getGamesByPlatform, updateGame, deleteGame } =
@@ -11,13 +11,31 @@ export default function TestGamesPlatformsPage() {
   const [platformName, setPlatformName] = useState('Test Platform');
   const [platformDesc, setPlatformDesc] = useState('Test Description');
   const [platformResult, setPlatformResult] = useState('');
-  const [platforms, setPlatforms] = useState<any[]>([]);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
 
   const [gameName, setGameName] = useState('Test Game');
   const [gamePlatformId, setGamePlatformId] = useState('');
   const [gameDesc, setGameDesc] = useState('Test Game Description');
   const [gameResult, setGameResult] = useState('');
-  const [games, setGames] = useState<any[]>([]);
+  const [games, setGames] = useState<Game[]>([]);
+
+  const loadPlatforms = useCallback(async () => {
+    try {
+      const plats = await getPlatforms();
+      setPlatforms(plats);
+    } catch (error) {
+      console.error('Failed to load platforms:', error);
+    }
+  }, [getPlatforms, setPlatforms]);
+
+  const loadGames = useCallback(async () => {
+    try {
+      const gms = await getGames();
+      setGames(gms);
+    } catch (error) {
+      console.error('Failed to load games:', error);
+    }
+  }, [getGames, setGames]);
 
   // Automatic tests on mount
   useEffect(() => {
@@ -101,25 +119,9 @@ export default function TestGamesPlatformsPage() {
     updateGame,
     deleteGame,
     deletePlatform,
+    loadPlatforms,
+    loadGames,
   ]);
-
-  const loadPlatforms = async () => {
-    try {
-      const plats = await getPlatforms();
-      setPlatforms(plats);
-    } catch (error) {
-      console.error('Failed to load platforms:', error);
-    }
-  };
-
-  const loadGames = async () => {
-    try {
-      const gms = await getGames();
-      setGames(gms);
-    } catch (error) {
-      console.error('Failed to load games:', error);
-    }
-  };
 
   const testCreatePlatform = async () => {
     try {

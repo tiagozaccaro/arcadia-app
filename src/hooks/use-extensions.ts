@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ExtensionInfo,
   MenuItem,
-  listExtensions,
-  installExtension,
-  uninstallExtension,
-  enableExtension,
-  disableExtension,
   callExtensionApi,
+  disableExtension,
+  enableExtension,
   getExtensionMenuItems,
+  installExtension,
+  listExtensions,
+  uninstallExtension,
 } from '../lib/extensions';
 
 interface UseExtensionsReturn {
@@ -24,8 +24,8 @@ interface UseExtensionsReturn {
   callExtensionApi: (
     extensionId: string,
     api: string,
-    params?: any
-  ) => Promise<any>;
+    params?: Record<string, unknown>
+  ) => Promise<unknown>;
   getExtensionById: (id: string) => ExtensionInfo | undefined;
   getExtensionsByType: (type: string) => ExtensionInfo[];
   getEnabledExtensions: () => ExtensionInfo[];
@@ -133,8 +133,8 @@ export function useExtensions(): UseExtensionsReturn {
     async (
       extensionId: string,
       api: string,
-      params: any = {}
-    ): Promise<any> => {
+      params: Record<string, unknown> = {}
+    ): Promise<unknown> => {
       try {
         setError(null);
         return await callExtensionApi(extensionId, api, params);

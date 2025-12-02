@@ -257,14 +257,14 @@ export function useExtensionStore(): UseExtensionStoreReturn {
   // Initial load
   useEffect(() => {
     fetchExtensions(true);
-  }, []); // Only run once on mount
+  }, [fetchExtensions]); // Include fetchExtensions in dependencies
 
   // Refetch when filters or sort change
   useEffect(() => {
     if (currentPage === 0) {
       fetchExtensions(true);
     }
-  }, [filters, sort, fetchExtensions]);
+  }, [filters, sort, fetchExtensions, currentPage]);
 
   return {
     extensions,

@@ -7,9 +7,15 @@ describe('cn', () => {
   });
 
   it('handles conditional classes', () => {
-    expect(cn('class1', true && 'class2', false && 'class3')).toBe(
-      'class1 class2'
-    );
+    const shouldAddClass2 = true;
+    const shouldAddClass3 = false;
+    expect(
+      cn(
+        'class1',
+        shouldAddClass2 ? 'class2' : '',
+        shouldAddClass3 ? 'class3' : ''
+      )
+    ).toBe('class1 class2');
   });
 
   it('merges Tailwind classes', () => {
