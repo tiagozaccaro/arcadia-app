@@ -17,12 +17,25 @@ A Tauri application built with React, TypeScript, and Rust, featuring an extensi
 - Node.js (LTS)
 - Rust (stable)
 - pnpm
+- Docker (for containerized development)
 
 ### Setup
+
+#### Native Development (requires system dependencies)
 
 ```bash
 pnpm install
 pnpm tauri dev
+```
+
+#### Docker Development (recommended for Linux/macOS)
+
+```bash
+# Build and start development container
+docker-compose up arcadia-dev
+
+# Or build and run in background
+docker-compose up -d arcadia-dev
 ```
 
 ### Scripts
@@ -32,6 +45,37 @@ pnpm tauri dev
 - `pnpm lint` - Lint frontend code
 - `pnpm test` - Run frontend tests
 - `pnpm tauri build` - Build Tauri app
+
+### Docker Build
+
+```bash
+# Build production image
+docker-compose build
+
+# Run production build
+docker-compose run arcadia-build
+```
+
+### System Dependencies
+
+For native development, you need to install system dependencies:
+
+**Ubuntu/Debian:**
+
+```bash
+sudo apt-get update && sudo apt-get install -y \
+    libglib2.0-dev \
+    libgtk-3-dev \
+    libwebkit2gtk-4.0-dev \
+    pkg-config
+```
+
+**macOS (Homebrew):**
+
+```bash
+brew install glib pkg-config
+export PKG_CONFIG_PATH=$(brew --prefix)/opt/glib/lib/pkgconfig
+```
 
 ## CI/CD
 
