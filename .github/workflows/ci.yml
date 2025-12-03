@@ -127,6 +127,11 @@ jobs:
       - name: Set PKG_CONFIG_PATH (macOS)
         if: matrix.platform == 'macos-latest'
         run: echo "PKG_CONFIG_PATH=$(brew --prefix)/opt/glib/lib/pkgconfig" >> $GITHUB_ENV
+      - name: Install system dependencies (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          choco install -y gtk-runtime
+          echo "PKG_CONFIG_PATH=C:\msys64\mingw64\lib\pkgconfig" >> $env:GITHUB_ENV
       - name: Verify system dependencies
         run: |
           echo "Checking pkg-config setup..."
