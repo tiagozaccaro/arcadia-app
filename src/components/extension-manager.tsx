@@ -1,19 +1,15 @@
-import { useState } from 'react';
 import {
-  IconPlus,
-  IconTrash,
-  IconPlayerPlay,
-  IconPlayerPause,
   IconDotsVertical,
   IconInfoCircle,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconPlus,
+  IconTrash,
 } from '@tabler/icons-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { useExtensions } from '@/hooks/use-extensions';
-import {
-  ExtensionInfo,
-  getExtensionTypeDisplayNameFromString,
-} from '@/lib/extensions';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -22,7 +18,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +44,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useExtensions } from '@/hooks/use-extensions';
+import {
+  ExtensionInfo,
+  getExtensionTypeDisplayNameFromString,
+} from '@/lib/extensions';
 
 export function ExtensionManager() {
   const {
@@ -76,7 +76,7 @@ export function ExtensionManager() {
       toast.success('Extension installed successfully');
       setInstallDialogOpen(false);
       setManifestPath('');
-    } catch (err) {
+    } catch {
       toast.error('Failed to install extension');
     }
   };
@@ -88,7 +88,7 @@ export function ExtensionManager() {
     try {
       await uninstallExtension(extensionId);
       toast.success(`Extension "${extensionName}" uninstalled successfully`);
-    } catch (err) {
+    } catch {
       toast.error('Failed to uninstall extension');
     }
   };
@@ -102,7 +102,7 @@ export function ExtensionManager() {
         await enableExtension(extension.id);
         toast.success(`Extension "${extension.name}" enabled`);
       }
-    } catch (err) {
+    } catch {
       toast.error(
         `Failed to ${extension.enabled ? 'disable' : 'enable'} extension`
       );

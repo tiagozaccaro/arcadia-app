@@ -180,8 +180,8 @@ export async function listExtensions(): Promise<ExtensionInfo[]> {
 export async function callExtensionApi(
   extensionId: string,
   api: string,
-  params: any = {}
-): Promise<any> {
+  params: Record<string, unknown> = {}
+): Promise<unknown> {
   return await invoke('call_extension_api', { extensionId, api, params });
 }
 

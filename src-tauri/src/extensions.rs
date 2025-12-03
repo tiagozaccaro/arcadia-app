@@ -70,7 +70,7 @@ impl ExtensionManager {
         extension.initialize(&self.context).await?;
 
         // Store in database
-        self.save_extension_to_db(&id, &extension.get_manifest(), manifest_path).await?;
+        self.save_extension_to_db(&id, extension.get_manifest(), manifest_path).await?;
 
         // Register permissions
         self.save_permissions_to_db(&id, &extension.get_manifest().permissions).await?;
@@ -112,8 +112,8 @@ impl ExtensionManager {
         Ok(results)
     }
 
-    pub fn get_extension(&self, id: &str) -> Option<&Box<dyn ExtensionImpl>> {
-        self.extensions.get(id)
+    pub fn get_extension(&self, id: &str) -> Option<&dyn ExtensionImpl> {
+        self.extensions.get(id).map(|boxed| boxed.as_ref())
     }
 
     pub fn list_extensions(&self) -> Vec<ExtensionInfo> {
@@ -154,7 +154,7 @@ impl ExtensionManager {
     }
 
     fn get_db_connection(&self) -> Result<Connection, ExtensionError> {
-        let data_dir = self.context.app_handle.path().app_data_dir().map_err(|e| ExtensionError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        let data_dir = self.context.app_handle.path().app_data_dir().map_err(|e| ExtensionError::Io(std::io::Error::other(e.to_string())))?;
         let db_path = data_dir.join("app.db");
         Connection::open(db_path).map_err(ExtensionError::Database)
     }
@@ -187,8 +187,8 @@ impl ExtensionManager {
                 id,
                 &manifest.name,
                 &manifest.version,
-                &manifest.author.as_deref().unwrap_or(""),
-                &manifest.description.as_deref().unwrap_or(""),
+                manifest.author.as_deref().unwrap_or(""),
+                manifest.description.as_deref().unwrap_or(""),
                 &manifest.extension_type.to_string(),
                 &manifest.entry_point,
                 &manifest_path.to_string_lossy(),
@@ -229,7 +229,6 @@ struct DefaultExtension {
     description: String,
     version: String,
     author: String,
-    category: String,
     tags: Vec<String>,
     icon: Option<String>,
     manifest_url: String,

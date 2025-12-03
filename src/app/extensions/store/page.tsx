@@ -91,7 +91,7 @@ export default function ExtensionStorePage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, setFilters]);
+  }, [searchQuery, filters, setFilters]);
 
   // Apply type filter
   useEffect(() => {
@@ -99,7 +99,7 @@ export default function ExtensionStorePage() {
       ...filters,
       extension_type: selectedType === 'all' ? undefined : selectedType,
     });
-  }, [selectedType, setFilters]);
+  }, [selectedType, filters, setFilters]);
 
   // Apply source filter
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function ExtensionStorePage() {
       ...filters,
       source_ids: selectedSource === 'all' ? undefined : [selectedSource],
     });
-  }, [selectedSource, setFilters]);
+  }, [selectedSource, filters, setFilters]);
 
   const handleCardClick = async (extensionId: string) => {
     try {

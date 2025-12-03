@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  arcadia-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/src-tauri/target
+    ports:
+      - "1420:1420"
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig
+    command: sh -c "cd /app && ./scripts/build.sh dev"
+    stdin_open: true
+    tty: true
+
+  arcadia-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    environment:
+      - NODE_ENV=production
+      - PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig
+    command: sh -c "cd /app && ./scripts/build.sh build"
