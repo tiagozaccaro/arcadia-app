@@ -45,6 +45,11 @@ if [ ${#MISSING_LIBS[@]} -gt 0 ]; then
                 "glib-2.0") sudo apt-get install -y libglib2.0-dev ;;
                 "gobject-2.0") sudo apt-get install -y libgobject-2.0-dev ;;
                 "gio-2.0") sudo apt-get install -y libgio-2.0-dev ;;
+                *)
+                    echo "🚨 Unknown library: $lib, trying generic installation..."
+                    sudo apt-get install -y "$lib"-dev || echo "⚠️  Failed to install $lib-dev, trying alternative..."
+                    sudo apt-get install -y lib"$lib"-dev || echo "❌ Could not install $lib"
+                    ;;
             esac
         done
     elif command -v brew &> /dev/null; then
