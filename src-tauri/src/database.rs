@@ -1,6 +1,5 @@
 use rusqlite::Connection;
 use tauri::{App, Manager};
-use chrono;
 use crate::models::{Platform, Game};
 
 pub fn init_database(app: &App) -> Result<(), Box<dyn std::error::Error>> {
@@ -180,28 +179,43 @@ pub fn update_platform(conn: &Connection, id: i64, name: String, description: Op
 }
 
 pub fn delete_platform(conn: &Connection, id: i64) -> Result<(), rusqlite::Error> {
-    conn.execute("DELETE FROM platforms WHERE id = ?", &[&id])?;
+    conn.execute("DELETE FROM platforms WHERE id = ?", [&id])?;
     Ok(())
 }
 
 // Game CRUD functions
-pub fn create_game(
-    conn: &Connection,
-    name: String,
-    platform_id: i64,
-    description: Option<String>,
-    developer: Option<String>,
-    publisher: Option<String>,
-    release_date: Option<String>,
-    cover_image_path: Option<String>,
-    executable_path: Option<String>,
-    working_directory: Option<String>,
-    arguments: Option<String>,
-) -> Result<i64, rusqlite::Error> {
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct GameData {
+    pub name: String,
+    pub platform_id: i64,
+    pub description: Option<String>,
+    pub developer: Option<String>,
+    pub publisher: Option<String>,
+    pub release_date: Option<String>,
+    pub cover_image_path: Option<String>,
+    pub executable_path: Option<String>,
+    pub working_directory: Option<String>,
+    pub arguments: Option<String>,
+}
+
+pub fn create_game(conn: &Connection, game_data: GameData) -> Result<i64, rusqlite::Error> {
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
         "INSERT INTO games (name, platform_id, description, developer, publisher, release_date, cover_image_path, executable_path, working_directory, arguments, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        rusqlite::params![name, platform_id, description, developer, publisher, release_date, cover_image_path, executable_path, working_directory, arguments, now, now],
+        rusqlite::params![
+            game_data.name,
+            game_data.platform_id,
+            game_data.description,
+            game_data.developer,
+            game_data.publisher,
+            game_data.release_date,
+            game_data.cover_image_path,
+            game_data.executable_path,
+            game_data.working_directory,
+            game_data.arguments,
+            now,
+            now
+        ],
     )?;
     Ok(conn.last_insert_rowid())
 }
@@ -267,26 +281,30 @@ pub fn get_games_by_platform(conn: &Connection, platform_id: i64) -> Result<Vec<
 pub fn update_game(
     conn: &Connection,
     id: i64,
-    name: String,
-    platform_id: i64,
-    description: Option<String>,
-    developer: Option<String>,
-    publisher: Option<String>,
-    release_date: Option<String>,
-    cover_image_path: Option<String>,
-    executable_path: Option<String>,
-    working_directory: Option<String>,
-    arguments: Option<String>,
+    game_data: GameData,
 ) -> Result<(), rusqlite::Error> {
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
         "UPDATE games SET name = ?, platform_id = ?, description = ?, developer = ?, publisher = ?, release_date = ?, cover_image_path = ?, executable_path = ?, working_directory = ?, arguments = ?, updated_at = ? WHERE id = ?",
-        rusqlite::params![name, platform_id, description, developer, publisher, release_date, cover_image_path, executable_path, working_directory, arguments, now, id],
+        rusqlite::params![
+            game_data.name,
+            game_data.platform_id,
+            game_data.description,
+            game_data.developer,
+            game_data.publisher,
+            game_data.release_date,
+            game_data.cover_image_path,
+            game_data.executable_path,
+            game_data.working_directory,
+            game_data.arguments,
+            now,
+            id
+        ],
     )?;
     Ok(())
 }
 
 pub fn delete_game(conn: &Connection, id: i64) -> Result<(), rusqlite::Error> {
-    conn.execute("DELETE FROM games WHERE id = ?", &[&id])?;
+    conn.execute("DELETE FROM games WHERE id = ?", [&id])?;
     Ok(())
 }

@@ -218,24 +218,17 @@ fn delete_platform_command(app: AppHandle, id: i64) -> Result<(), String> {
 }
 
 // Game commands
+use crate::database::GameData;
+
 #[tauri::command]
 fn create_game_command(
     app: AppHandle,
-    name: String,
-    platform_id: i64,
-    description: Option<String>,
-    developer: Option<String>,
-    publisher: Option<String>,
-    release_date: Option<String>,
-    cover_image_path: Option<String>,
-    executable_path: Option<String>,
-    working_directory: Option<String>,
-    arguments: Option<String>,
+    game_data: GameData,
 ) -> Result<i64, String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = data_dir.join("app.db");
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
-    create_game(&conn, name, platform_id, description, developer, publisher, release_date, cover_image_path, executable_path, working_directory, arguments).map_err(|e| e.to_string())
+    create_game(&conn, game_data).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -258,21 +251,12 @@ fn get_games_by_platform_command(app: AppHandle, platform_id: i64) -> Result<Vec
 fn update_game_command(
     app: AppHandle,
     id: i64,
-    name: String,
-    platform_id: i64,
-    description: Option<String>,
-    developer: Option<String>,
-    publisher: Option<String>,
-    release_date: Option<String>,
-    cover_image_path: Option<String>,
-    executable_path: Option<String>,
-    working_directory: Option<String>,
-    arguments: Option<String>,
+    game_data: GameData,
 ) -> Result<(), String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = data_dir.join("app.db");
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
-    update_game(&conn, id, name, platform_id, description, developer, publisher, release_date, cover_image_path, executable_path, working_directory, arguments).map_err(|e| e.to_string())
+    update_game(&conn, id, game_data).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
