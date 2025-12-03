@@ -130,9 +130,11 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli
       - name: Build frontend
-        run: PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig pnpm build
-      - name: Build Tauri app
-        run: PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig pnpm tauri build
+        run: pnpm build
+      - name: Build Tauri app with Rust wrapper
+        run: |
+          chmod +x scripts/rust-build.sh
+          ./scripts/rust-build.sh tauri
 
   build-tauri-docker:
     needs: [lint-frontend, test-frontend, lint-backend, test-backend]

@@ -50,6 +50,10 @@ COPY . .
 # Install frontend dependencies
 RUN pnpm install
 
+# Copy Rust build script
+COPY scripts/rust-build.sh /usr/local/bin/rust-build
+RUN chmod +x /usr/local/bin/rust-build
+
 # Build the application using our build script
 RUN arcadia-build build
 
